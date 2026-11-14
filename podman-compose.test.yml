@@ -52,6 +52,10 @@ services:
     userns: keep-id
     devices:
       - /dev/net/tun:/dev/net/tun
+    # The warpgate and firefox containers share this container's network
+    # namespace, so the published ports have to be declared here.
+    # Rootless Podman cannot bind a port below 1024, so the bastion hop is
+    # published as 8443 in the test setup.
     ports:
       - "127.0.0.1:${PUBLISH_SSH_PORT:-2222}:${WARPGATE_SSH_PORT:-2222}"
       - "127.0.0.1:${PUBLISH_HTTP_PORT:-8888}:${WARPGATE_HTTP_PORT:-8888}"
@@ -61,6 +65,7 @@ services:
       VPN_CLIENT: openvpn
       VPN_CONFIG: /etc/openvpn/client.conf
       OCP_BASTION_IP: "10.8.0.1"
+      OCP_BASTION_PORT: "443"
     volumes:
       - ./test/client.conf:/etc/openvpn/client.conf:ro
       - ovpn-pki:/etc/openvpn/pki:ro
@@ -108,6 +113,21 @@ services:
     # terminal, so the container has to be started with one.
     tty: true
     restart: unless-stopped
+
+  # Debug helper: runs the Kasm VNC startup in the foreground and keeps the
+  # trace, so a failing startup can be inspected. Not part of the normal run.
+  ff-trace:
+    image: localhost/warpgate-firefox:latest
+    container_name: warpgate-ff-trace
+    network_mode: "service:vpn"
+    hostname: warpgate-ff-trace
+    tty: true
+    depends_on:
+      - vpn
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - "exec /dockerstartup/kasm_default_profile.sh /dockerstartup/vnc_startup.sh /dockerstartup/kasm_startup.sh --wait"
+    profiles: ["debug"]
 
 networks:
   warpgate_test:
