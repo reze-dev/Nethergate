@@ -11,9 +11,6 @@ vpn := "warpgate-vpn"
 bastion := "warpgate"
 browser := "warpgate-firefox"
 
-# Set to a different URL to check something else through the tunnel.
-corporate_url := "https://console.example.internal/"
-
 # Podman format strings, kept in variables because just would otherwise try
 # to read the braces as its own interpolation.
 ps_format := "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
@@ -82,7 +79,7 @@ status:
 
 # Check that the whole stack works
 verify:
-    @./verify.sh {{vpn}} {{bastion}} {{browser}} {{corporate_url}}
+    @./verify.sh {{vpn}} {{bastion}} {{browser}}
 
 # --- the test harness ------------------------------------------------------
 
@@ -98,6 +95,7 @@ test-down:
 # Check that the test stack works
 test-verify:
     @./verify.sh warpgate-vpn-test warpgate-warpgate-test warpgate-firefox-test http://127.0.0.1:443/
+
 
 # Run the browser's startup in the foreground and keep the trace
 debug-browser:

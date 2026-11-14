@@ -151,6 +151,10 @@ Two of them are worth a note:
 - `WARPGATE_EXTERNAL_PORT` is left empty on purpose, which makes it follow
   `PUBLISH_HTTPS_PORT`. Set it only when something sits in between, such as a
   reverse proxy.
+- `OCP_BASTION_URL` is the name the corporate resource is reached by. A
+  resource behind a corporate router usually answers to a name rather than to
+  an address, so this is the name its certificate is for. `just verify` uses
+  it to check that the resource really is reachable through the tunnel.
 
 ### Ports
 

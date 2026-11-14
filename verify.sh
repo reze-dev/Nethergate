@@ -10,13 +10,20 @@
 #   ./verify.sh [vpn-container] [bastion-container] [browser-container] [url]
 #
 # The defaults are the production container names. The url is what the
-# browser pod should be able to reach through the tunnel.
+# browser pod should be able to reach through the tunnel. When it is not
+# given it is taken from OCP_BASTION_URL in .env, because a resource behind
+# a corporate router usually answers to a name rather than to an address.
 set -uo pipefail
 
 VPN="${1:-warpgate-vpn}"
 BASTION="${2:-warpgate}"
 BROWSER="${3:-warpgate-firefox}"
-URL="${4:-http://127.0.0.1:443/}"
+URL="${4:-}"
+
+if [[ -z "$URL" && -r .env ]]; then
+    URL="$(grep '^OCP_BASTION_URL=' .env 2>/dev/null | head -1 | cut -d= -f2-)"
+fi
+URL="${URL:-http://127.0.0.1:443/}"
 
 BOLD=$'\033[1m'
 GREEN=$'\033[32m'
