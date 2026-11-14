@@ -53,6 +53,15 @@ through the VPN on the usual HTTPS port.
 `.env`, `secrets/` and `data/` are in `.gitignore`. None of them belong in
 version control.
 
+## Requirements
+
+- Podman and podman-compose
+- Rootless Podman with a usable `newuidmap`/`newgidmap`, and your user
+  listed in `/etc/subuid` and `/etc/subgid`
+- Python 3, which is already there because podman-compose is a Python program
+- `just`, for the task file
+- SELinux enforcing is fine, the containers are labelled `spc_t`
+
 ## Setting it up
 
 One command does the whole thing:
