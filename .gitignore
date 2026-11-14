@@ -1,5 +1,7 @@
 # The credentials and the state are written on the target machine and never
 # belong in version control.
+.env
+.env.example
 secrets/
 data/
 

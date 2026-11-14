@@ -53,10 +53,10 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     ports:
-      - "127.0.0.1:2222:2222"
-      - "127.0.0.1:8888:8888"
-      - "127.0.0.1:8443:8888"
-      - "127.0.0.1:6901:6901"
+      - "127.0.0.1:${PUBLISH_SSH_PORT:-2222}:${WARPGATE_SSH_PORT:-2222}"
+      - "127.0.0.1:${PUBLISH_HTTP_PORT:-8888}:${WARPGATE_HTTP_PORT:-8888}"
+      - "127.0.0.1:${TEST_PUBLISH_HTTPS_PORT:-8443}:${WARPGATE_HTTP_PORT:-8888}"
+      - "127.0.0.1:${PUBLISH_VNC_PORT:-6901}:6901"
     environment:
       VPN_CLIENT: openvpn
       VPN_CONFIG: /etc/openvpn/client.conf
@@ -88,7 +88,7 @@ services:
     network_mode: "service:vpn"
     # The Kasm image resolves its own hostname at startup and exits if that
     # fails, so it needs an explicit one.
-    hostname: warpgate-firefox
+    hostname: "${BROWSER_HOSTNAME:-warpgate-firefox}"
     depends_on:
       - vpn
     command: ["--wait"]
