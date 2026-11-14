@@ -93,8 +93,16 @@ services:
       - vpn
     command: ["--wait"]
     environment:
-      VNC_PW: "testpass123"
+      # The image bakes in a default VNC password. It is set here to
+      # nothing on purpose, so the secret files below are used instead.
+      VNC_PW: "${VNC_PW:-}"
+      VNC_VIEW_ONLY_PW: "${VNC_VIEW_ONLY_PW:-}"
       LAUNCH_URL: ""
+    volumes:
+      # The VNC password comes from the same secret file the real stack
+      # uses, so the test exercises that path.
+      - ./secrets/vnc_password:/run/secrets/vnc_password:ro,Z
+      - ./secrets/vnc_viewonly_password:/run/secrets/vnc_viewonly_password:ro,Z
     shm_size: 512m
     # The Kasm image sets the VNC password with a tool that needs a
     # terminal, so the container has to be started with one.

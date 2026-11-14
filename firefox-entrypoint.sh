@@ -1,16 +1,38 @@
 #!/usr/bin/env bash
 # Entrypoint for the warpgate browser container.
 #
-# The Kasm image resolves its own hostname while starting up and aborts with
-# "hostname: Name or service not known" when the lookup fails. This container
-# joins the network namespace of another one, so Podman does not add its
-# hostname to /etc/hosts the way it does for a container that owns the
-# namespace. Adding the name here keeps the startup working.
+# Three things have to happen before the Kasm startup script runs.
 #
-# /etc/hosts is a root-owned tmpfs, so the fix has to happen while still
-# root. The browser itself must not run as root, because Firefox refuses to
-# start when HOME belongs to another user.
+# The first is the hostname. The Kasm image resolves its own hostname while
+# starting up and aborts with "hostname: Name or service not known" when the
+# lookup fails. This container joins the network namespace of another one,
+# so Podman does not add its hostname to /etc/hosts the way it does for a
+# container that owns the namespace. Adding the name here keeps the startup
+# working. /etc/hosts is a root-owned tmpfs, so that has to happen while
+# still root.
+#
+# The second is the VNC password. The image bakes in "vncpassword" and
+# "vncviewonlypassword" as defaults, so the password has to come from
+# somewhere else or the browser is open to anything that can reach the port.
+# The secret files are the source of truth when they are there, and the
+# environment is only a fallback for when they are not.
+#
+# The third is dropping privileges. The browser must not run as root, because
+# Firefox refuses to start when HOME belongs to another user.
 set -e
+
+VNC_SECRET=/run/secrets/vnc_password
+VNC_VIEW_ONLY_SECRET=/run/secrets/vnc_viewonly_password
+
+if [[ -r "$VNC_SECRET" ]]; then
+    VNC_PW="$(cat "$VNC_SECRET")"
+    export VNC_PW
+fi
+
+if [[ -r "$VNC_VIEW_ONLY_SECRET" ]]; then
+    VNC_VIEW_ONLY_PW="$(cat "$VNC_VIEW_ONLY_SECRET")"
+    export VNC_VIEW_ONLY_PW
+fi
 
 if [[ "$(id -u)" == "0" ]]; then
     name="$(hostname)"
