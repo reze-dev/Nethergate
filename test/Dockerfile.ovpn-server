@@ -1,0 +1,18 @@
+FROM registry.fedoraproject.org/fedora:latest
+
+# A throwaway OpenVPN server used only by the test harness. It stands in for
+# the corporate gateway so the plumbing can be validated without a corporate
+# credential.
+RUN dnf install -y \
+    openvpn \
+    openssl \
+    iproute \
+    procps-ng \
+    python3 \
+    && dnf clean all
+
+COPY server.conf /etc/openvpn/server.conf
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 0755 /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

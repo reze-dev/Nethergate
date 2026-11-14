@@ -1,0 +1,9 @@
+FROM docker.io/kasmweb/firefox:1.18.0
+
+USER root
+
+# The stock script only matches "eth*" interfaces, so the browser loses its
+# route when the container ends up with another interface name.
+RUN sed -i \
+    's/\[\[ \$interface == eth\* && -z \$KASM_SVC_EGRESS \]\]/[[ \$interface == eth* || \$interface == enp* ]] \&\& [[ -z $KASM_SVC_EGRESS ]]/' \
+    /dockerstartup/vnc_startup.sh

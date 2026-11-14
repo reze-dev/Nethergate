@@ -1,0 +1,52 @@
+# Warpgate bastion and container browser.
+
+services:
+  vpn:
+    image: localhost/warpgate-vpn:latest
+    container_name: warpgate-vpn
+    build:
+      context: .
+      dockerfile: Dockerfile
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    environment:
+      VPN_USERNAME: <corporate-vpn-username>
+      VPN_AUTHGROUP: <corporate-vpn-authgroup>
+      VPN_GATEWAY: https://vpn.example.com/
+      OCP_BASTION_IP: "10.0.0.10"
+    volumes:
+      - ./secrets/vpn_password:/run/secrets/vpn_password:ro,Z
+    restart: unless-stopped
+
+  warpgate:
+    image: ghcr.io/warp-tech/warpgate:latest
+    container_name: warpgate
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
+    volumes:
+      - ./data:/data:Z
+    ports:
+      - "127.0.0.1:2222:2222"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:443:8888"
+    restart: unless-stopped
+
+  firefox:
+    image: localhost/warpgate-firefox:latest
+    container_name: warpgate-firefox
+    build:
+      context: .
+      dockerfile: Dockerfile.firefox
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
+    environment:
+      VNC_PW: "<your-secure-password>"
+      LAUNCH_URL: ""
+    shm_size: 512m
+    ports:
+      - "127.0.0.1:6901:6901"
+    restart: unless-stopped

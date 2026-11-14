@@ -1,0 +1,87 @@
+# Test harness for the warpgate VPN plumbing.
+#
+# This stands up a local OpenVPN server and points the vpn container at it,
+# so the whole stack can be validated without the corporate gateway and
+# without a corporate credential. Nothing here touches the real gateway.
+#
+# The PKI is generated inside the server container and shared with the
+# client through a named volume.
+#
+# Usage:
+#   podman-compose -f podman-compose.test.yml up -d
+#   podman-compose -f podman-compose.test.yml down -v
+services:
+  ovpn-server:
+    image: localhost/ovpn-test-server:latest
+    container_name: warpgate-ovpn-server
+    build:
+      context: ./test
+      dockerfile: Dockerfile.ovpn-server
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ovpn-pki:/etc/openvpn/pki
+    networks:
+      warpgate_test:
+
+  vpn:
+    image: localhost/warpgate-vpn:latest
+    container_name: warpgate-vpn-test
+    build:
+      context: .
+      dockerfile: Dockerfile
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      VPN_CLIENT: openvpn
+      VPN_CONFIG: /etc/openvpn/client.conf
+      OCP_BASTION_IP: "10.8.0.1"
+    volumes:
+      - ./test/client.conf:/etc/openvpn/client.conf:ro
+      - ovpn-pki:/etc/openvpn/pki:ro
+    depends_on:
+      - ovpn-server
+    networks:
+      warpgate_test:
+
+  warpgate:
+    image: ghcr.io/warp-tech/warpgate:latest
+    container_name: warpgate-warpgate-test
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
+    volumes:
+      - ./data:/data:Z
+    ports:
+      - "127.0.0.1:2222:2222"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:8443:8888"
+    restart: unless-stopped
+
+  firefox:
+    image: localhost/warpgate-firefox:latest
+    container_name: warpgate-firefox-test
+    build:
+      context: .
+      dockerfile: Dockerfile.firefox
+    network_mode: "service:vpn"
+    depends_on:
+      - vpn
+    environment:
+      VNC_PW: "testpass123"
+      LAUNCH_URL: ""
+    shm_size: 512m
+    ports:
+      - "127.0.0.1:6901:6901"
+    restart: unless-stopped
+
+networks:
+  warpgate_test:
+    name: warpgate_test
+
+volumes:
+  ovpn-pki:
