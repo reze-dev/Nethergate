@@ -19,6 +19,11 @@ services:
     # Without keep-id the container's root is an unmapped subuid and the
     # TUNSETIFF ioctl is rejected with EPERM.
     userns: keep-id
+    ports:
+      - "127.0.0.1:2222:2222"
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:443:8888"
+      - "127.0.0.1:6901:6901"
     environment:
       VPN_USERNAME: <corporate-vpn-username>
       VPN_AUTHGROUP: <corporate-vpn-authgroup>
@@ -36,10 +41,6 @@ services:
       - vpn
     volumes:
       - ./data:/data:Z
-    ports:
-      - "127.0.0.1:2222:2222"
-      - "127.0.0.1:8888:8888"
-      - "127.0.0.1:443:8888"
     restart: unless-stopped
 
   firefox:
@@ -55,6 +56,4 @@ services:
       VNC_PW: "<your-secure-password>"
       LAUNCH_URL: ""
     shm_size: 512m
-    ports:
-      - "127.0.0.1:6901:6901"
     restart: unless-stopped
