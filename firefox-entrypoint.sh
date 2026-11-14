@@ -34,6 +34,20 @@ if [[ -r "$VNC_VIEW_ONLY_SECRET" ]]; then
     export VNC_VIEW_ONLY_PW
 fi
 
+# Without a password the Kasm startup script fails in a way that says
+# nothing about what is wrong, so say it here instead.
+if [[ -z "${VNC_PW:-}" ]]; then
+    echo "No VNC password was found." >&2
+    if [[ -e "$VNC_SECRET" && ! -f "$VNC_SECRET" ]]; then
+        echo "$VNC_SECRET is a directory, which happens when the stack is started" >&2
+        echo "before ./configure.py has made it." >&2
+    else
+        echo "Expected it at $VNC_SECRET." >&2
+    fi
+    echo "Run ./configure.py and start the stack again." >&2
+    exit 1
+fi
+
 if [[ "$(id -u)" == "0" ]]; then
     name="$(hostname)"
     if ! grep -qE "[[:space:]]${name}(\$|[[:space:]])" /etc/hosts 2>/dev/null; then

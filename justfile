@@ -44,9 +44,20 @@ build:
 # --- running ---------------------------------------------------------------
 
 # Start the stack
-up:
+up: check-secrets
     @{{compose}} up -d
     @echo "the bastion is on https://127.0.0.1:8443 and the browser on 127.0.0.1:6901"
+
+# Make sure the credentials are there before anything is started. Podman
+# makes a directory out of a missing bind mount source, and the containers
+# then fail in ways that say nothing about the real problem.
+check-secrets:
+    @if [ ! -f secrets/vpn_password ] || [ ! -f secrets/vnc_password ] || [ ! -f secrets/vnc_viewonly_password ]; then \
+        echo "The credentials are missing, or one of them is a directory."; \
+        echo "That happens when the stack is started before ./configure.py has made them."; \
+        echo "Run 'just configure' first."; \
+        exit 1; \
+    fi
 
 # Stop the stack
 down:
@@ -84,7 +95,7 @@ verify:
 # --- the test harness ------------------------------------------------------
 
 # Start the stack against a local OpenVPN server
-test-up:
+test-up: check-secrets
     @{{test_compose}} up -d
     @echo "the test stack is up"
 
