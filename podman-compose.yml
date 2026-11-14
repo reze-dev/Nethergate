@@ -11,6 +11,14 @@ services:
       - /dev/net/tun:/dev/net/tun
     cap_add:
       - NET_ADMIN
+    # The tun device is owned by root on the host, so a rootless container
+    # cannot open it unless SELinux lets it. spc_t is the "super privileged
+    # container" type, which is what a VPN container needs.
+    security_opt:
+      - label=type:spc_t
+    # Without keep-id the container's root is an unmapped subuid and the
+    # TUNSETIFF ioctl is rejected with EPERM.
+    userns: keep-id
     environment:
       VPN_USERNAME: <corporate-vpn-username>
       VPN_AUTHGROUP: <corporate-vpn-authgroup>
