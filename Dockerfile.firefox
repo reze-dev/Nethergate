@@ -1,5 +1,14 @@
 FROM docker.io/kasmweb/firefox:1.18.0
 
+# The base image runs as kasm-user (uid 1000). It has to keep doing so:
+# Firefox refuses to start as root when HOME belongs to another user, which
+# shows up as "Running Firefox as root in a regular user's session is not
+# supported" and makes the container restart in a loop.
+#
+# The patch below has to be applied as root, so it is done in a build stage
+# and the final image keeps the original user.
+FROM docker.io/kasmweb/firefox:1.18.0 AS patched
+
 USER root
 
 # The stock script only matches "eth*" interfaces, so the browser loses its
@@ -7,3 +16,9 @@ USER root
 RUN sed -i \
     's/\[\[ \$interface == eth\* && -z \$KASM_SVC_EGRESS \]\]/[[ \$interface == eth* || \$interface == enp* ]] \&\& [[ -z $KASM_SVC_EGRESS ]]/' \
     /dockerstartup/vnc_startup.sh
+
+FROM docker.io/kasmweb/firefox:1.18.0
+
+COPY --from=patched /dockerstartup/vnc_startup.sh /dockerstartup/vnc_startup.sh
+
+USER 1000
