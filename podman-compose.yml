@@ -30,7 +30,7 @@ services:
       VPN_GATEWAY: https://vpn.example.com/
       OCP_BASTION_IP: "10.0.0.10"
     volumes:
-      - ./secrets/vpn_password:/run/secrets/vpn_password:ro,Z
+      - ./secrets/vpn_password:/run/secrets/vpn_password:ro,z
     restart: unless-stopped
 
   warpgate:
@@ -40,7 +40,7 @@ services:
     depends_on:
       - vpn
     volumes:
-      - ./data:/data:Z
+      - ./data:/data:z
     restart: unless-stopped
 
   firefox:
@@ -63,8 +63,8 @@ services:
       VNC_VIEW_ONLY_PW: "${VNC_VIEW_ONLY_PW:-}"
       LAUNCH_URL: ""
     volumes:
-      - ./secrets/vnc_password:/run/secrets/vnc_password:ro,Z
-      - ./secrets/vnc_viewonly_password:/run/secrets/vnc_viewonly_password:ro,Z
+      - ./secrets/vnc_password:/run/secrets/vnc_password:ro,z
+      - ./secrets/vnc_viewonly_password:/run/secrets/vnc_viewonly_password:ro,z
     shm_size: 512m
     # The Kasm image sets the VNC password with a tool that needs a
     # terminal, so the container has to be started with one.

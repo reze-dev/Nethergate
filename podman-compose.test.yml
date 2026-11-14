@@ -76,7 +76,7 @@ services:
     depends_on:
       - vpn
     volumes:
-      - ./data:/data:Z
+      - ./data:/data:z
     restart: unless-stopped
 
   firefox:
@@ -101,8 +101,8 @@ services:
     volumes:
       # The VNC password comes from the same secret file the real stack
       # uses, so the test exercises that path.
-      - ./secrets/vnc_password:/run/secrets/vnc_password:ro,Z
-      - ./secrets/vnc_viewonly_password:/run/secrets/vnc_viewonly_password:ro,Z
+      - ./secrets/vnc_password:/run/secrets/vnc_password:ro,z
+      - ./secrets/vnc_viewonly_password:/run/secrets/vnc_viewonly_password:ro,z
     shm_size: 512m
     # The Kasm image sets the VNC password with a tool that needs a
     # terminal, so the container has to be started with one.
