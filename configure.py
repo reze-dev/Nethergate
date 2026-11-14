@@ -821,6 +821,27 @@ credentials, and data/ holds warpgate's own state.
             f"to the same port unless something sits in between, such as a reverse "
             f"proxy.")
 
+    # The credentials are made before the settings are checked, so that a
+    # run which stops short still leaves the project in a state the stack
+    # can be started from.
+    if not args.no_secrets:
+        say("Secrets")
+        SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+        SECRETS_DIR.chmod(0o700)
+        # The corporate password can only be typed in, never generated. The
+        # admin password is asked for too, because it is typed into a
+        # browser. The VNC passwords are for a local client, so a generated
+        # one is fine.
+        #
+        # Warpgate has no password policy of its own, so the admin password
+        # is checked here instead.
+        ensure_secret(VPN_SECRET, "The corporate VPN password", "ask-required")
+        ensure_secret(VNC_SECRET, "The browser's VNC password", "generate")
+        ensure_secret(VNC_VIEW_ONLY_SECRET, "The browser's view-only VNC password",
+                      "generate")
+        ensure_secret(ADMIN_SECRET, "The warpgate admin password", "ask",
+                      minimum=12)
+
     if errors:
         # Write what is known anyway, so there is a file to fill in.
         write_env_file(values, extras)
@@ -852,24 +873,6 @@ credentials, and data/ holds warpgate's own state.
     say(f"Writing {ENV_FILE.name}")
     write_env_file(values, extras)
     write_example_file()
-
-    if not args.no_secrets:
-        say("Secrets")
-        SECRETS_DIR.mkdir(parents=True, exist_ok=True)
-        SECRETS_DIR.chmod(0o700)
-        # The corporate password can only be typed in, never generated. The
-        # admin password is asked for too, because it is typed into a
-        # browser. The VNC passwords are for a local client, so a generated
-        # one is fine.
-        #
-        # Warpgate has no password policy of its own, so the admin password
-        # is checked here instead.
-        ensure_secret(VPN_SECRET, "The corporate VPN password", "ask-required")
-        ensure_secret(VNC_SECRET, "The browser's VNC password", "generate")
-        ensure_secret(VNC_VIEW_ONLY_SECRET, "The browser's view-only VNC password",
-                      "generate")
-        ensure_secret(ADMIN_SECRET, "The warpgate admin password", "ask",
-                      minimum=12)
 
     # ---- warpgate's own state ------------------------------------------
     say("Warpgate")
