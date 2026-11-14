@@ -53,6 +53,64 @@ through the VPN on the usual HTTPS port.
 `.env`, `secrets/` and `data/` are in `.gitignore`. None of them belong in
 version control.
 
+## Security
+
+The point of the layout is that the host is not part of the corporate
+network. That holds in both directions, which took a little work.
+
+**Everything published is on loopback.** The bastion, the SSH bastion and
+the browser's VNC endpoint are bound to `127.0.0.1` and to nothing else.
+Nothing is reachable from the network the machine is on.
+
+**The corporate network cannot reach into the pods.** The gateway hands the
+tunnel an address out of its own client subnet and routes that subnet back
+to it, so anything listening in the pod's network namespace answers on the
+tunnel address. That includes the bastion, the SSH bastion and the VNC
+endpoint. The VPN container therefore drops new inbound connections on the
+tunnel and allows the replies to our own:
+
+```
+-A INPUT -i tun0 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -i tun0 -j DROP
+```
+
+The tunnel only ever makes outbound connections, so nothing is lost. The
+rules name the interface rather than the address, so they go in before the
+tunnel exists and survive a reconnect.
+
+**The credentials are files, not environment variables.** The corporate
+password is mounted read-only into the VPN container and nowhere else, and
+it is handed to the client on standard input, so it never appears in
+`podman inspect`, in `ps`, in the environment or in the logs.
+
+**The browser's passwords are not the image's.** The Kasm image ships
+`vncpassword` and `vncviewonlypassword`. Both are replaced from `secrets/`.
+
+**Warpgate is locked down as far as it goes.** Login protection is on, so
+five attempts from an address inside fifteen minutes earn a thirty minute
+block. Sessions expire after thirty minutes and after five minutes of
+inactivity, forwarded headers are not trusted, and session recording is
+off. The audit log keeps entries for a year.
+
+**The password policy is enforced by the script.** Warpgate imposes no
+minimum length of its own, so `configure.py` will not accept an admin
+password shorter than twelve characters.
+
+### What is not covered
+
+- **The VPN container is labelled `spc_t` and has `NET_ADMIN`.** That is
+  what a VPN container needs to open the tun device, and it does make that
+  container close to privileged. A compromise of it would be a compromise of
+  the account that owns it. The browser container has neither.
+- **There is no second factor.** Warpgate's MFA enforcement is off, which
+  is reasonable while the bastion is only on loopback. If it is ever
+  published more widely, turn it on in the admin interface.
+- **The bastion's TLS certificate is self-signed.** Fine on loopback, but
+  the browser will complain about it.
+- **The tunnel's own address is visible to the corporate network.** It is
+  not reachable now, but the gateway can still see it, and it changes on
+  every connection.
+
 ## Credits and licences
 
 This project is glue. It does not contain any of the interesting parts, and
@@ -410,6 +468,13 @@ not be published. The port list belongs on `vpn`.
 **Rootless Podman cannot bind port 443.** Binding a privileged port needs
 `net.ipv4.ip_unprivileged_port_start=443` in a sysctl file. The default here
 is 8443 so the stack starts without any system changes.
+
+**The corporate network could reach into the pods.** The gateway hands the
+tunnel an address out of its own client subnet and routes that subnet back
+to it, so everything listening in the pod's namespace answered on the
+tunnel address, including the bastion and the browser's VNC endpoint. The
+VPN container now drops new inbound connections on the tunnel and allows the
+replies to its own outbound ones.
 
 **warpgate's state belongs to the container user.** The `warpgate` image runs
 as uid 1000, which under rootless podman is a subuid on the host, so

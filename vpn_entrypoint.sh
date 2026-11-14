@@ -36,6 +36,42 @@ stop_vpn() {
 
 trap stop_vpn TERM INT
 
+# The corporate gateway hands the tunnel an address out of its own client
+# subnet and routes that subnet back to it, so anything listening in this
+# namespace is reachable from the corporate network. The bastion, the SSH
+# bastion and the browser's vnc endpoint all answer on the tunnel address.
+#
+# The tunnel only ever makes outbound connections, so new inbound ones on it
+# are dropped. Replies to those are allowed, otherwise nothing would come
+# back. The rules name the interface rather than the address, so they can go
+# in before the tunnel exists and survive a reconnect.
+restrict_tunnel() {
+  local dev="${1:-tun0}"
+
+  # The nftables backend talks to the kernel directly, the legacy one needs
+  # a module this container cannot load.
+  local iptables
+  for candidate in iptables-nft iptables; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      iptables="$candidate"
+      break
+    fi
+  done
+  if [[ -z "$iptables" ]]; then
+    echo "No iptables backend is available, so the tunnel address stays reachable" >&2
+    echo "from the corporate network." >&2
+    return 1
+  fi
+
+  "$iptables" -C INPUT -i "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null \
+    || "$iptables" -A INPUT -i "$dev" -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+  "$iptables" -C INPUT -i "$dev" -j DROP 2>/dev/null \
+    || "$iptables" -A INPUT -i "$dev" -j DROP
+  echo "New connections on $dev are dropped, replies to ours are allowed."
+}
+
+restrict_tunnel "${TUN_DEVICE:-tun0}" || true
+
 # The forward makes the resource behind the VPN reachable on the usual port
 # inside the pod, so the browser can use https://127.0.0.1/ without knowing
 # anything about the network behind it.

@@ -8,6 +8,7 @@ RUN dnf install -y \
     vpnc-script \
     iproute \
     iputils \
+    iptables-nft \
     openssh-clients \
     socat \
     procps-ng \

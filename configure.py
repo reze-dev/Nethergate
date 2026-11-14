@@ -383,7 +383,11 @@ def write_secret(path, value):
     path.chmod(0o600)
 
 
-def ask(prompt, confirm=False):
+def ask(prompt, confirm=False, minimum=0):
+    """Asks for a value, and for a secret it asks twice.
+
+    minimum is the least number of characters a secret may have. Warpgate
+    imposes no password policy of its own, so the check is made here."""
     while True:
         try:
             value = getpass.getpass(prompt)
@@ -397,12 +401,16 @@ def ask(prompt, confirm=False):
         except (EOFError, OSError):
             warn("  could not read the value again.")
             return ""
-        if value == again:
-            return value
-        warn("  The two entries do not match.")
+        if value != again:
+            warn("  The two entries do not match.")
+            continue
+        if len(value) < minimum:
+            warn(f"  That is {len(value)} characters, it needs at least {minimum}.")
+            continue
+        return value
 
 
-def ensure_secret(path, description, policy):
+def ensure_secret(path, description, policy, minimum=0):
     """policy is "ask", "ask-required" or "generate".
 
     "ask-required" is for the corporate password. It can only be typed in,
@@ -435,7 +443,7 @@ def ensure_secret(path, description, policy):
         return
 
     say(f"  {description} is not set yet.")
-    value = ask(f"  {description}: ", confirm=True)
+    value = ask(f"  {description}: ", confirm=True, minimum=minimum)
     if not value:
         warn("  left empty.")
         return
@@ -853,11 +861,15 @@ credentials, and data/ holds warpgate's own state.
         # admin password is asked for too, because it is typed into a
         # browser. The VNC passwords are for a local client, so a generated
         # one is fine.
+        #
+        # Warpgate has no password policy of its own, so the admin password
+        # is checked here instead.
         ensure_secret(VPN_SECRET, "The corporate VPN password", "ask-required")
         ensure_secret(VNC_SECRET, "The browser's VNC password", "generate")
         ensure_secret(VNC_VIEW_ONLY_SECRET, "The browser's view-only VNC password",
                       "generate")
-        ensure_secret(ADMIN_SECRET, "The warpgate admin password", "ask")
+        ensure_secret(ADMIN_SECRET, "The warpgate admin password", "ask",
+                      minimum=12)
 
     # ---- warpgate's own state ------------------------------------------
     say("Warpgate")
