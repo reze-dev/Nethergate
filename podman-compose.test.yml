@@ -86,12 +86,19 @@ services:
       context: .
       dockerfile: Dockerfile.firefox
     network_mode: "service:vpn"
+    # The Kasm image resolves its own hostname at startup and exits if that
+    # fails, so it needs an explicit one.
+    hostname: warpgate-firefox
     depends_on:
       - vpn
+    command: ["--wait"]
     environment:
       VNC_PW: "testpass123"
       LAUNCH_URL: ""
     shm_size: 512m
+    # The Kasm image sets the VNC password with a tool that needs a
+    # terminal, so the container has to be started with one.
+    tty: true
     restart: unless-stopped
 
 networks:

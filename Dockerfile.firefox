@@ -17,8 +17,19 @@ RUN sed -i \
     's/\[\[ \$interface == eth\* && -z \$KASM_SVC_EGRESS \]\]/[[ \$interface == eth* || \$interface == enp* ]] \&\& [[ -z $KASM_SVC_EGRESS ]]/' \
     /dockerstartup/vnc_startup.sh
 
+# This container joins the network namespace of another one, so Podman does
+# not add its own hostname to /etc/hosts, and the startup script aborts with
+# "hostname: Name or service not known" when that lookup fails. /etc/hosts
+# is a bind mount and cannot be edited at build time, so the name is added
+# when the container starts.
 FROM docker.io/kasmweb/firefox:1.18.0
 
-COPY --from=patched /dockerstartup/vnc_startup.sh /dockerstartup/vnc_startup.sh
+USER root
 
-USER 1000
+COPY --from=patched /dockerstartup/vnc_startup.sh /dockerstartup/vnc_startup.sh
+COPY firefox-entrypoint.sh /usr/local/bin/firefox-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/firefox-entrypoint.sh
+
+# The container starts as root so that the entry point can fix /etc/hosts,
+# then drops to kasm-user before starting the browser.
+ENTRYPOINT ["/usr/local/bin/firefox-entrypoint.sh"]
