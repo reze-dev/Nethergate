@@ -543,6 +543,124 @@ def init_warpgate_state(admin_password, values):
     return result.returncode == 0
 
 
+def recover_admin_password(password):
+    """Applies a new password to the admin user of an existing database.
+
+    warpgate's recover-access insists on a terminal, so it is driven through
+    a pty."""
+    import pty
+    import select
+
+    argv = [
+        "podman", "run", "--rm", "-it",
+        "-v", f"{DATA_DIR}:/data:z",
+        "--entrypoint", "/usr/local/bin/warpgate", WARPGATE_IMAGE,
+        "recover-access", "admin",
+    ]
+
+    master, slave = pty.openpty()
+    proc = subprocess.Popen(argv, stdin=slave, stdout=slave, stderr=slave,
+                            close_fds=True)
+    os.close(slave)
+
+    out = b""
+    sent_password = False
+    sent_confirm = False
+    try:
+        while True:
+            ready, _, _ = select.select([master], [], [], 1.0)
+            if ready:
+                try:
+                    chunk = os.read(master, 4096)
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                out += chunk
+                text = out.decode("utf-8", "replace")
+                if not sent_password and "New password" in text:
+                    os.write(master, password.encode() + b"\r")
+                    sent_password = True
+                elif sent_password and not sent_confirm and "Continue?" in text:
+                    os.write(master, b"y\r")
+                    sent_confirm = True
+            if proc.poll() is not None:
+                break
+    finally:
+        os.close(master)
+
+    return proc.wait() == 0 and b"All done" in out
+
+
+def admin_password_fingerprint():
+    """What the admin password in the secret was when it was last applied to
+    the database, so the script can tell whether the two have drifted apart."""
+    path = SECRETS_DIR / "admin_password.applied"
+    if not path.is_file():
+        return None
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+
+
+def record_admin_password_fingerprint(password):
+    import hashlib
+    digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+    path = SECRETS_DIR / "admin_password.applied"
+    SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text(digest + "\n", encoding="utf-8")
+        path.chmod(0o600)
+    except OSError as error:
+        warn(f"  could not record the admin password fingerprint: {error}")
+
+
+
+def indent_of(line):
+    return len(line) - len(line.lstrip(" "))
+
+
+def set_in_section(lines, section, key, value):
+    """Sets section.key in a YAML document, adding the key to the section if
+    it is not there. The document is edited line by line so that everything
+    else, including the comments and the order, is left as it was."""
+    start = None
+    for i, line in enumerate(lines):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent_of(line) != 0:
+            continue
+        if line.strip().split(":")[0] == section:
+            start = i
+            break
+    if start is None:
+        return lines
+
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent_of(line) <= 0:
+            break
+        match = re.match(r"^(\s*)%s:\s*(.*)$" % re.escape(key), line)
+        if match and indent_of(line) == 2:
+            lines[i] = f"{match.group(1)}{key}: {value}"
+            return lines
+
+    # The key is missing, so add it to the end of the section.
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent_of(line) <= 0:
+            end = i
+            break
+    lines.insert(end, f"  {key}: {value}")
+    return lines
+
+
 def patch_config_file(path, host, http_port, ssh_port):
     """Rewrites data/warpgate.yaml in place, setting the external address.
 
@@ -762,8 +880,26 @@ credentials, and data/ holds warpgate's own state.
             warn("  start the stack once and run ./configure.py again.")
         elif not init_warpgate_state(admin_password, values):
             warn("  warpgate's state could not be generated here.")
-    else:
-        say("  warpgate's state is already there, leaving it alone.")
+        else:
+            record_admin_password_fingerprint(admin_password)
+    elif admin_password:
+        # The database already exists. The password in the secret has to be
+        # the one in the database, otherwise the login quietly fails. When
+        # that cannot be shown to be the case, the password is applied, which
+        # is harmless if it was already right.
+        import hashlib
+        digest = hashlib.sha256(admin_password.encode("utf-8")).hexdigest()
+        recorded = admin_password_fingerprint()
+        if recorded == digest:
+            say("  the admin password is the one in the database.")
+        else:
+            say("  applying the admin password to the database...")
+            if recover_admin_password(admin_password):
+                record_admin_password_fingerprint(admin_password)
+                say("  the admin password was applied to the database.")
+            else:
+                warn("  the admin password could not be applied to the database.")
+                warn("  set it with: podman exec warpgate recover-access admin")
 
     if (DATA_DIR / "warpgate.yaml").is_file():
         if patch_warpgate_config(values):
