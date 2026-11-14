@@ -53,6 +53,49 @@ through the VPN on the usual HTTPS port.
 `.env`, `secrets/` and `data/` are in `.gitignore`. None of them belong in
 version control.
 
+## Credits and licences
+
+This project is glue. It does not contain any of the interesting parts, and
+it would not be worth much without these:
+
+| What | Project | Licence |
+| --- | --- | --- |
+| The bastion | [Warpgate](https://github.com/warp-tech/warpgate) | Apache-2.0 |
+| The browser container | [Kasm Workspaces images](https://github.com/kasmtech/workspaces-images) | MIT, for Kasm's own files |
+| The VNC server in it | [KasmVNC](https://github.com/kasmtech/KasmVNC) | GPL-2.0 |
+| The browser | [Mozilla Firefox](https://www.mozilla.org/firefox/) | MPL-2.0 |
+| The VPN client | [openconnect](https://www.infradead.org/openconnect/) | LGPL-2.1-or-later |
+| The tunnel script | [vpnc-script](https://github.com/NetworkManager/vpnc-script) | GPL-2.0-or-later |
+| The forwarder | [socat](http://www.dest-unreach.org/socat/) | GPL-2.0-only |
+| The test harness client | [OpenVPN](https://openvpn.net/) | GPL-2.0-only |
+| The compose implementation | [podman-compose](https://github.com/containers/podman-compose) | GPL-2.0 |
+| The task runner | [just](https://github.com/casey/just) | CC0-1.0 |
+
+The base images are [Fedora](https://fedoraproject.org/) and
+[Ubuntu](https://ubuntu.com/), which carry their own collection of licences.
+The Kasm image is published under a licence that covers Kasm's own files in
+that repository, and explicitly not the dependencies inside it.
+
+The code in this repository is MIT licensed, see [LICENSE](LICENSE).
+
+### Why MIT works here
+
+Most of what runs inside the containers is GPL or LGPL licensed, and none of
+it is modified. A copyleft licence does not spread to the code that merely
+runs, links against or orchestrates it, so the glue around it can be
+licensed however you like.
+
+The one place where something is modified is `vnc_startup.sh` in the browser
+image, which gets a single line changed so the browser keeps its route when
+the container ends up with a different interface name. That file stays
+GPL-2.0, it cannot be relicensed, and the terms of the GPL are met by
+publishing the source of the change. `Dockerfile.firefox` is the complete
+source of that modification, so this repository is where the source lives.
+
+The rest of the packages come from the distribution's own repositories, and
+their sources are published there. Nothing GPL is copied into this
+repository's files.
+
 ## Requirements
 
 - Podman and podman-compose
