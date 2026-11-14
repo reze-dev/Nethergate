@@ -1,10 +1,23 @@
-# Warpgate bastion and container browser
+# Nethergate
 
-A local bastion for the corporate VPN, plus a containerised browser that runs
-inside that VPN. The point of the layout is that **the VPN lives only inside the
-pods**: the containers reach the corporate network through the tunnel, while the
-host keeps its own internet connection. You can browse the internet and the
-corporate intranet at the same time.
+A [warpgate](https://warp-tech.github.io/warpgate/) bastion and a
+containerised browser, with the corporate VPN confined to the pods.
+
+**The host keeps its own internet connection**, so you can browse the internet
+and the corporate intranet at the same time. The containers reach the corporate
+network through the tunnel, and the host's routing table is never touched.
+
+One script sets it all up, one command starts it, and one command checks that
+it really works:
+
+```bash
+./configure.py     # ask for what is not known yet, write the configuration
+just up            # start the stack
+just verify        # check that it really works
+```
+
+It needs podman, podman-compose and `just`. See
+[Requirements](#requirements).
 
 ## How it works
 
